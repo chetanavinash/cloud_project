@@ -288,7 +288,7 @@ export function Profile({ viewingUserId }: ProfileProps) {
               {/* Joined Platform tag */}
               <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-bold mt-4">
                 <Calendar className="w-3.5 h-3.5 text-slate-600" />
-                <span>MEMBER SINCE {new Date(profile.createdAt || Date.now()).toLocaleDateString()}</span>
+                <span>MEMBER SINCE {new Date(profile.createdAt || '2026-01-01').toLocaleDateString()}</span>
               </div>
             </div>
           )}
