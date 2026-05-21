@@ -71,7 +71,7 @@ jobs:
           elasticache_groups=$(aws elasticache describe-replication-groups --query "ReplicationGroups[?starts_with(ReplicationGroupId, 'dev-')].ReplicationGroupId" --output text 2>/dev/null || true)
           for group in $elasticache_groups; do
             echo "Deleting ElastiCache Group: $group"
-            aws elasticache delete-replication-group --replication-group-id $group --retain-primary-cluster false || true
+            aws elasticache delete-replication-group --replication-group-id $group || true
           done
           
           echo "Deleting ElastiCache Subnet Group: dev-redis-subnet-group"
@@ -134,7 +134,7 @@ jobs:
             nat_gateways=$(aws ec2 describe-nat-gateways --filter "Name=vpc-id,Values=$vpc_id" --query "NatGateways[?State!='deleted'].NatGatewayId" --output text 2>/dev/null || true)
             for nat_gw in $nat_gateways; do
               echo "Deleting NAT Gateway: $nat_gw"
-              aws ec2 delete-nat-gateway --nav-gateway-id $nat_gw --nat-gateway-id $nat_gw || true
+              aws ec2 delete-nat-gateway --nat-gateway-id $nat_gw || true
             done
             
             # Wait for NAT Gateways to be deleted
