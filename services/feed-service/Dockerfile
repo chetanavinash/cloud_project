@@ -2,6 +2,7 @@
 # STAGE 1: Build the application
 # ==========================================
 FROM node:20-alpine AS builder
+RUN apk add --no-cache openssl
 
 WORKDIR /usr/src/app
 
@@ -30,6 +31,7 @@ RUN npm run build
 # STAGE 2: Run the production application
 # ==========================================
 FROM node:20-alpine AS runner
+RUN apk add --no-cache openssl
 
 WORKDIR /usr/src/app
 

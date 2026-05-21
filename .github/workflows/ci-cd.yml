@@ -142,10 +142,12 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: List ECR Repositories (Diagnostic)
+      - name: Create ECR Repositories if they do not exist
         run: |
-          aws ecr describe-repositories --region us-east-1 --query 'repositories[*].repositoryName' || echo "Failed to list repositories"
-
+          for repo in dev-user-service dev-post-service dev-interaction-service dev-feed-service dev-notification-service dev-search-service dev-media-service dev-frontend; do
+            aws ecr describe-repositories --repository-names $repo --region us-east-1 || \
+            aws ecr create-repository --repository-name $repo --region us-east-1
+          done
       # 1. Build, Tag, and Push User Service
       - name: Build, Tag, and Push User Service
         env:
