@@ -142,14 +142,59 @@ jobs:
               echo "Waiting for NAT Gateways to delete..."
               sleep 40
             fi
+             # Delete Load Balancers associated with the VPC
+             echo "Locating ELBv2 Load Balancers in VPC $vpc_id..."
+             albs=$(aws elbv2 describe-load-balancers --query "LoadBalancers[?VpcId=='$vpc_id'].LoadBalancerArn" --output text 2>/dev/null || true)
+             for alb in $albs; do
+               echo "Deleting ELBv2 Load Balancer: $alb"
+               aws elbv2 delete-load-balancer --load-balancer-arn $alb || true
+             done
 
-            # Release Elastic IPs
-            echo "Releasing Elastic IPs..."
-            eip_allocations=$(aws ec2 describe-addresses --filters "Name=tag:Name,Values=dev-nat-eip*" --query "Addresses[].AllocationId" --output text 2>/dev/null || true)
-            for eip in $eip_allocations; do
-              echo "Releasing Elastic IP: $eip"
-              aws ec2 release-address --allocation-id $eip || true
-            done
+             echo "Locating Classic Load Balancers in VPC $vpc_id..."
+             elbs=$(aws elb describe-load-balancers --query "LoadBalancerDescriptions[?VpcId=='$vpc_id'].LoadBalancerName" --output text 2>/dev/null || true)
+             for elb in $elbs; do
+               echo "Deleting Classic Load Balancer: $elb"
+               aws elb delete-load-balancer --load-balancer-name $elb || true
+             done
+
+             # Wait for Load Balancers to delete
+             if [ -n "$albs" ] || [ -n "$elbs" ]; then
+               echo "Waiting for Load Balancers to delete..."
+               sleep 15
+             fi
+
+             # Detach and Delete Network Interfaces (ENIs) to unlock Subnets
+             echo "Locating Network Interfaces in VPC $vpc_id..."
+             enis=$(aws ec2 describe-network-interfaces --filters "Name=vpc-id,Values=$vpc_id" --query "NetworkInterfaces[].NetworkInterfaceId" --output text 2>/dev/null || true)
+             for eni in $enis; do
+               echo "Processing Network Interface: $eni"
+               attachment_id=$(aws ec2 describe-network-interfaces --network-interface-ids $eni --query "NetworkInterfaces[0].Attachment.AttachmentId" --output text 2>/dev/null || true)
+               if [ -n "$attachment_id" ] && [ "$attachment_id" != "None" ]; then
+                 echo "Detaching Network Interface Attachment: $attachment_id"
+                 aws ec2 detach-network-interface --attachment-id $attachment_id --force || true
+                 sleep 5
+               fi
+               echo "Deleting Network Interface: $eni"
+               aws ec2 delete-network-interface --network-interface-id $eni || true
+             done
+
+             # Release Elastic IPs
+             echo "Releasing Elastic IPs..."
+             addresses_info=$(aws ec2 describe-addresses --filters "Name=tag:Name,Values=dev-nat-eip*" --query "Addresses[]" --output json 2>/dev/null || true)
+             if [ -n "$addresses_info" ] && [ "$addresses_info" != "[]" ]; then
+               # Extract Allocation IDs and Associations using jq or simple grep
+               allocations=$(aws ec2 describe-addresses --filters "Name=tag:Name,Values=dev-nat-eip*" --query "Addresses[].AllocationId" --output text 2>/dev/null || true)
+               for eip_alloc in $allocations; do
+                 assoc_id=$(aws ec2 describe-addresses --allocation-ids $eip_alloc --query "Addresses[0].AssociationId" --output text 2>/dev/null || true)
+                 if [ -n "$assoc_id" ] && [ "$assoc_id" != "None" ]; then
+                   echo "Disassociating Elastic IP allocation $eip_alloc (Association: $assoc_id)"
+                   aws ec2 disassociate-address --association-id $assoc_id || true
+                   sleep 2
+                 fi
+                 echo "Releasing Elastic IP allocation: $eip_alloc"
+                 aws ec2 release-address --allocation-id $eip_alloc || true
+               done
+             fi
 
             # Detach and Delete Internet Gateways
             igws=$(aws ec2 describe-internet-gateways --filters "Name=attachment.vpc-id,Values=$vpc_id" --query "InternetGateways[].InternetGatewayId" --output text 2>/dev/null || true)
