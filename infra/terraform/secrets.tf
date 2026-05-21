@@ -1,6 +1,20 @@
 # ==============================================================================
 # Helper template for IRSA Assume Role Policy (EKS OpenID Connect federated trust)
 # ==============================================================================
+locals {
+  services = [
+    "user-service",
+    "post-service",
+    "interaction-service",
+    "feed-service",
+    "notification-service",
+    "search-service",
+    "media-service",
+    "analytics-service",
+    "frontend"
+  ]
+}
+
 data "aws_iam_policy_document" "irsa_assume_role" {
   for_each = toset(local.services)
 
