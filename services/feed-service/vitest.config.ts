@@ -7,8 +7,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@prisma/user-client': path.resolve(__dirname, '../../node_modules/@prisma/user-client'),
-      '@prisma/post-client': path.resolve(__dirname, '../../node_modules/@prisma/post-client'),
+      '@prisma/user-client': path.resolve(__dirname, '../../node_modules/@prisma/user-client/index.js'),
+      '@prisma/post-client': path.resolve(__dirname, '../../node_modules/@prisma/post-client/index.js'),
     },
   },
 });
