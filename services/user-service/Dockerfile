@@ -6,6 +6,7 @@ FROM node:20-alpine AS builder
 WORKDIR /usr/src/app
 
 # Copy root configurations for references
+COPY package*.json ./
 COPY tsconfig.base.json ./
 
 # Copy service files
@@ -35,15 +36,16 @@ WORKDIR /usr/src/app
 ENV NODE_ENV=production
 
 # Copy built package dependencies and Prisma files
-COPY services/user-service/package*.json ./
+COPY package*.json ./
+COPY services/user-service/package*.json ./services/user-service/
 COPY services/user-service/prisma ./prisma/
 
 # Install only production dependencies
-RUN npm ci --only=production
+RUN npm ci --omit=dev --workspace=services/user-service
 
 # Copy generated Prisma Client and built JS files from builder stage
-COPY --from=builder /usr/src/app/services/user-service/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /usr/src/app/services/user-service/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=builder /usr/src/app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /usr/src/app/node_modules/@prisma/client ./node_modules/@prisma/client
 COPY --from=builder /usr/src/app/services/user-service/dist ./dist
 
 # Create non-root system user for runtime security hardening

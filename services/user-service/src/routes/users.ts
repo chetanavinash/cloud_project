@@ -81,7 +81,7 @@ export async function userRoutes(fastify: FastifyInstance) {
             })
           }));
         } catch (snsErr) {
-          request.log.error('Failed to publish USER_CREATED event to SNS:', snsErr);
+          request.log.error(snsErr, 'Failed to publish USER_CREATED event to SNS:');
         }
       }
 
@@ -96,7 +96,7 @@ export async function userRoutes(fastify: FastifyInstance) {
   });
 
   // 2. GET /users/:id (Public)
-  fastify.get('/users/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.get<{ Params: { id: string } }>('/users/:id', async (request, reply) => {
     const { id } = request.params;
     
     try {
@@ -121,7 +121,7 @@ export async function userRoutes(fastify: FastifyInstance) {
   });
 
   // 3. PUT /users/:id
-  fastify.put('/users/:id', { preHandler: verifyJWT }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.put<{ Params: { id: string } }>('/users/:id', { preHandler: verifyJWT }, async (request, reply) => {
     const { id } = request.params;
     const userClaims = request.user!;
 
@@ -154,7 +154,7 @@ export async function userRoutes(fastify: FastifyInstance) {
             })
           }));
         } catch (snsErr) {
-          request.log.error('Failed to publish USER_UPDATED event to SNS:', snsErr);
+          request.log.error(snsErr, 'Failed to publish USER_UPDATED event to SNS:');
         }
       }
 
@@ -169,7 +169,7 @@ export async function userRoutes(fastify: FastifyInstance) {
   });
 
   // 4. DELETE /users/:id
-  fastify.delete('/users/:id', { preHandler: verifyJWT }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.delete<{ Params: { id: string } }>('/users/:id', { preHandler: verifyJWT }, async (request, reply) => {
     const { id } = request.params;
     const userClaims = request.user!;
 
@@ -190,7 +190,7 @@ export async function userRoutes(fastify: FastifyInstance) {
   });
 
   // 5. POST /users/:id/follow
-  fastify.post('/users/:id/follow', { preHandler: verifyJWT }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.post<{ Params: { id: string } }>('/users/:id/follow', { preHandler: verifyJWT }, async (request, reply) => {
     const followingId = request.params.id; // Target user to follow
     const followerId = request.user!.sub; // Current logged in user
 
@@ -239,7 +239,7 @@ export async function userRoutes(fastify: FastifyInstance) {
   });
 
   // 6. DELETE /users/:id/follow (Unfollow)
-  fastify.delete('/users/:id/follow', { preHandler: verifyJWT }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.delete<{ Params: { id: string } }>('/users/:id/follow', { preHandler: verifyJWT }, async (request, reply) => {
     const followingId = request.params.id; // Target user to unfollow
     const followerId = request.user!.sub; // Current user
 
@@ -274,13 +274,13 @@ export async function userRoutes(fastify: FastifyInstance) {
 
       return reply.send({ message: 'Successfully unfollowed user' });
     } catch (error) {
-      request.log.error(error);
+      request.log.error({ err: error });
       return reply.status(500).send({ error: 'Internal server error' });
     }
   });
 
-  // 7. GET /users/:id/followers (Paginated)
-  fastify.get('/users/:id/followers', async (request: FastifyRequest<{ Params: { id: string }, Querystring: { limit?: string, cursor?: string } }>, reply: FastifyReply) => {
+  // 7. GET /users/:id/followers
+  fastify.get<{ Params: { id: string }, Querystring: { limit?: string, cursor?: string } }>('/users/:id/followers', async (request, reply) => {
     const { id } = request.params;
     const limit = Math.min(Number(request.query.limit) || 20, 100);
     const cursor = request.query.cursor; // cursor would be followerId
@@ -315,13 +315,13 @@ export async function userRoutes(fastify: FastifyInstance) {
         nextCursor
       });
     } catch (error) {
-      request.log.error(error);
+      request.log.error({ err: error });
       return reply.status(500).send({ error: 'Internal server error' });
     }
   });
 
-  // 8. GET /users/:id/following (Paginated)
-  fastify.get('/users/:id/following', async (request: FastifyRequest<{ Params: { id: string }, Querystring: { limit?: string, cursor?: string } }>, reply: FastifyReply) => {
+  // 8. GET /users/:id/following
+  fastify.get<{ Params: { id: string }, Querystring: { limit?: string, cursor?: string } }>('/users/:id/following', async (request, reply) => {
     const { id } = request.params;
     const limit = Math.min(Number(request.query.limit) || 20, 100);
     const cursor = request.query.cursor; // cursor would be followingId

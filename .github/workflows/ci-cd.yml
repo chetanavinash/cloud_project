@@ -148,7 +148,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/dev-user-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-user-service:latest ./services/user-service
+          docker build -t $ECR_REGISTRY/dev-user-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-user-service:latest -f ./services/user-service/Dockerfile .
           docker push $ECR_REGISTRY/dev-user-service:$IMAGE_TAG
           docker push $ECR_REGISTRY/dev-user-service:latest
 
@@ -158,7 +158,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/dev-post-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-post-service:latest ./services/post-service
+          docker build -t $ECR_REGISTRY/dev-post-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-post-service:latest -f ./services/post-service/Dockerfile .
           docker push $ECR_REGISTRY/dev-post-service:$IMAGE_TAG
           docker push $ECR_REGISTRY/dev-post-service:latest
 
@@ -168,7 +168,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/dev-interaction-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-interaction-service:latest ./services/interaction-service
+          docker build -t $ECR_REGISTRY/dev-interaction-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-interaction-service:latest -f ./services/interaction-service/Dockerfile .
           docker push $ECR_REGISTRY/dev-interaction-service:$IMAGE_TAG
           docker push $ECR_REGISTRY/dev-interaction-service:latest
 
@@ -178,7 +178,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/dev-feed-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-feed-service:latest ./services/feed-service
+          docker build -t $ECR_REGISTRY/dev-feed-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-feed-service:latest -f ./services/feed-service/Dockerfile .
           docker push $ECR_REGISTRY/dev-feed-service:$IMAGE_TAG
           docker push $ECR_REGISTRY/dev-feed-service:latest
 
@@ -188,7 +188,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/dev-notification-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-notification-service:latest ./services/notification-service
+          docker build -t $ECR_REGISTRY/dev-notification-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-notification-service:latest -f ./services/notification-service/Dockerfile .
           docker push $ECR_REGISTRY/dev-notification-service:$IMAGE_TAG
           docker push $ECR_REGISTRY/dev-notification-service:latest
 
@@ -198,7 +198,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/dev-search-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-search-service:latest ./services/search-service
+          docker build -t $ECR_REGISTRY/dev-search-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-search-service:latest -f ./services/search-service/Dockerfile .
           docker push $ECR_REGISTRY/dev-search-service:$IMAGE_TAG
           docker push $ECR_REGISTRY/dev-search-service:latest
 
@@ -208,7 +208,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/dev-media-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-media-service:latest ./services/media-service
+          docker build -t $ECR_REGISTRY/dev-media-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-media-service:latest -f ./services/media-service/Dockerfile .
           docker push $ECR_REGISTRY/dev-media-service:$IMAGE_TAG
           docker push $ECR_REGISTRY/dev-media-service:latest
 

@@ -111,7 +111,7 @@ export async function feedRoutes(fastify: FastifyInstance) {
           });
           const results = await pipeline.exec();
           if (results) {
-            results.forEach(res => {
+            results.forEach((res: any) => {
               const [err, val] = res;
               if (!err && Array.isArray(val)) {
                 for (let i = 0; i < val.length; i += 2) {

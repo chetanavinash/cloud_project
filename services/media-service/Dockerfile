@@ -6,6 +6,7 @@ FROM node:20-alpine AS builder
 WORKDIR /usr/src/app
 
 # Copy root configurations for references
+COPY package*.json ./
 COPY tsconfig.base.json ./
 
 # Copy service files
@@ -31,10 +32,11 @@ WORKDIR /usr/src/app
 ENV NODE_ENV=production
 
 # Copy built package dependencies
-COPY services/media-service/package*.json ./
+COPY package*.json ./
+COPY services/media-service/package*.json ./services/media-service/
 
 # Install only production dependencies
-RUN npm ci --only=production
+RUN npm ci --omit=dev --workspace=services/media-service
 
 # Copy built JS files from builder stage
 COPY --from=builder /usr/src/app/services/media-service/dist ./dist
