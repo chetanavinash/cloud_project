@@ -56,6 +56,7 @@ class SQSConsumer {
 
   private async processMessage(message: any) {
     try {
+      console.log('[SQS Consumer] Received raw message body:', message.Body);
       const outerBody = JSON.parse(message.Body);
       let payload = outerBody;
 
@@ -63,13 +64,15 @@ class SQSConsumer {
       if (outerBody.Message) {
         try {
           payload = JSON.parse(outerBody.Message);
+          console.log('[SQS Consumer] Parsed SNS message payload:', payload);
         } catch {
           payload = outerBody.Message;
+          console.log('[SQS Consumer] SNS message was not JSON string:', payload);
         }
       }
 
       if (!payload.userId || !payload.type || !payload.senderId || !payload.senderName) {
-        console.warn('Invalid notification message payload formats:', payload);
+        console.warn('[SQS Consumer] Invalid notification message payload formats:', payload);
         // Remove toxic message from queue
         await sqsClient.send(new DeleteMessageCommand({
           QueueUrl: config.SQS_QUEUE_URL,
@@ -93,25 +96,30 @@ class SQSConsumer {
         createdAt: new Date().toISOString(),
       };
 
+      console.log('[SQS Consumer] Writing notification to DynamoDB:', notification);
       await docClient.send(new PutCommand({
         TableName: config.DYNAMODB_TABLE,
         Item: notification,
       }));
+      console.log('[SQS Consumer] Written to DynamoDB.');
 
       // Push real-time WS alert
-      connectionManager.sendToUser(payload.userId, {
+      console.log(`[SQS Consumer] Sending notification to user ${payload.userId} via WebSocket...`);
+      const sent = connectionManager.sendToUser(payload.userId, {
         type: 'NOTIFICATION',
         notification,
       });
+      console.log(`[SQS Consumer] WebSocket send status to user ${payload.userId}:`, sent);
 
       // Acknowledge (delete) the message
       await sqsClient.send(new DeleteMessageCommand({
         QueueUrl: config.SQS_QUEUE_URL,
         ReceiptHandle: message.ReceiptHandle,
       }));
+      console.log('[SQS Consumer] Message deleted from SQS.');
 
     } catch (error) {
-      console.error('Failed to process message:', error);
+      console.error('[SQS Consumer] Failed to process message:', error);
     }
   }
 }

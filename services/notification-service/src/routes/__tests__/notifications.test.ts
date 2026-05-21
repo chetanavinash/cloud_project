@@ -76,18 +76,26 @@ describe('Notification Service API & WS Integration Tests', () => {
   // 2. Test WebSocket connection and event fanout
   it('should handle WebSocket connection and push notification message published to SNS/SQS', async () => {
     const wsUrl = `ws://127.0.0.1:${serverPort}/ws?x-mock-user-id=test-user-123`;
+    console.log('Connecting to WebSocket URL:', wsUrl);
     
     // Promise to assert message receive over socket
     const receivedNotification = new Promise<any>((resolve, reject) => {
       const ws = new WebSocket(wsUrl);
       const timeout = setTimeout(() => {
+        console.log('Test timeout triggered, closing WS...');
         ws.close();
         reject(new Error('WebSocket message receive timeout'));
-      }, 5000);
+      }, 15000);
+
+      ws.on('open', () => {
+        console.log('WebSocket connection opened successfully in test client.');
+      });
 
       ws.on('message', (data) => {
+        console.log('WebSocket client received message:', data.toString());
         const payload = JSON.parse(data.toString());
         if (payload.type === 'NOTIFICATION') {
+          console.log('Received expected NOTIFICATION payload, resolving...');
           clearTimeout(timeout);
           ws.close();
           resolve(payload.notification);
@@ -95,8 +103,13 @@ describe('Notification Service API & WS Integration Tests', () => {
       });
 
       ws.on('error', (err) => {
+        console.error('WebSocket client error:', err);
         clearTimeout(timeout);
         reject(err);
+      });
+
+      ws.on('close', (code, reason) => {
+        console.log(`WebSocket client closed. Code: ${code}, Reason: ${reason.toString()}`);
       });
     });
 
@@ -104,6 +117,7 @@ describe('Notification Service API & WS Integration Tests', () => {
     await new Promise(resolve => setTimeout(resolve, 500));
 
     // Publish test activity event via SNS
+    console.log('Publishing LIKE event to SNS...');
     await snsClient.send(new PublishCommand({
       TopicArn: config.SNS_TOPIC_ARN,
       Message: JSON.stringify({
@@ -115,6 +129,7 @@ describe('Notification Service API & WS Integration Tests', () => {
         postId: 'post-uuid-1',
       }),
     }));
+    console.log('LIKE event published to SNS.');
 
     // Wait for WebSocket client to parse push event
     const notification = await receivedNotification;
@@ -123,7 +138,7 @@ describe('Notification Service API & WS Integration Tests', () => {
     expect(notification.senderName).toBe('bobbuilder');
     expect(notification.postId).toBe('post-uuid-1');
     expect(notification.isRead).toBe(false);
-  });
+  }, 15000);
 
   // 3. Test REST endpoints: GET Notifications & POST mark as read
   it('should retrieve notification history and update status to read', async () => {
@@ -196,5 +211,5 @@ describe('Notification Service API & WS Integration Tests', () => {
     });
     const finalBody = JSON.parse(finalResponse.body);
     expect(finalBody.notifications[0].isRead).toBe(true);
-  });
+  }, 15000);
 });

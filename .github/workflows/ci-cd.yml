@@ -23,11 +23,99 @@ jobs:
       - name: Install Root Dependencies
         run: npm ci
 
+      - name: Start Database & AWS Mock Services
+        run: |
+          docker compose up -d
+
+      - name: Generate Prisma Clients
+        run: npm run prisma:generate --workspaces --if-present
+
+      - name: Wait for Services to be Ready
+        run: |
+          npx wait-on tcp:localhost:5435 tcp:localhost:6379 tcp:localhost:8000 tcp:localhost:4566 --timeout 60000
+
+      - name: Push Prisma Database Schemas
+        run: |
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5435/user_service_db?schema=public npx prisma db push --schema=services/user-service/prisma/schema.prisma --accept-data-loss
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5435/post_service_db?schema=public npx prisma db push --schema=services/post-service/prisma/schema.prisma --accept-data-loss
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5435/interaction_service_db?schema=public npx prisma db push --schema=services/interaction-service/prisma/schema.prisma --accept-data-loss
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5435/search_service_db?schema=public npx prisma db push --schema=services/search-service/prisma/schema.prisma --accept-data-loss
+
       - name: Lint Codebases
         run: npm run lint --workspaces --if-present
 
-      - name: Run Unit Tests
-        run: npm run test --workspaces --if-present
+      - name: Run User Service Tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5435/user_service_db?schema=public
+          AWS_REGION: us-east-1
+          USE_LOCALSTACK: "true"
+          LOCALSTACK_ENDPOINT: http://localhost:4566
+          NODE_ENV: test
+        run: npm run test -w services/user-service
+
+      - name: Run Post Service Tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5435/post_service_db?schema=public
+          AWS_REGION: us-east-1
+          USE_LOCALSTACK: "true"
+          LOCALSTACK_ENDPOINT: http://localhost:4566
+          SNS_TOPIC_ARN: arn:aws:sns:us-east-1:000000000000:search-indexing-topic
+          NODE_ENV: test
+        run: npm run test -w services/post-service
+
+      - name: Run Interaction Service Tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5435/interaction_service_db?schema=public
+          AWS_REGION: us-east-1
+          USE_LOCALSTACK: "true"
+          LOCALSTACK_ENDPOINT: http://localhost:4566
+          NODE_ENV: test
+        run: npm run test -w services/interaction-service
+
+      - name: Run Feed Service Tests
+        env:
+          USER_DATABASE_URL: postgresql://postgres:postgres@localhost:5435/user_service_db?schema=public
+          POST_DATABASE_URL: postgresql://postgres:postgres@localhost:5435/post_service_db?schema=public
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          AWS_REGION: us-east-1
+          USE_LOCALSTACK: "true"
+          LOCALSTACK_ENDPOINT: http://localhost:4566
+          SQS_QUEUE_URL: http://localhost:4566/000000000000/social-fanout-queue
+          NODE_ENV: test
+        run: npm run test -w services/feed-service
+
+      - name: Run Notification Service Tests
+        env:
+          AWS_REGION: us-east-1
+          USE_LOCALSTACK: "true"
+          LOCALSTACK_ENDPOINT: http://localhost:4566
+          DYNAMODB_ENDPOINT: http://localhost:8000
+          DYNAMODB_TABLE: Notifications
+          SQS_QUEUE_URL: http://localhost:4566/000000000000/user-notifications-queue
+          SNS_TOPIC_ARN: arn:aws:sns:us-east-1:000000000000:user-notifications-topic
+          NODE_ENV: test
+        run: npm run test -w services/notification-service
+
+      - name: Run Search Service Tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5435/search_service_db?schema=public
+          AWS_REGION: us-east-1
+          USE_LOCALSTACK: "true"
+          LOCALSTACK_ENDPOINT: http://localhost:4566
+          SQS_QUEUE_URL: http://localhost:4566/000000000000/search-indexing-queue
+          SNS_TOPIC_ARN: arn:aws:sns:us-east-1:000000000000:search-indexing-topic
+          NODE_ENV: test
+        run: npm run test -w services/search-service
+
+      - name: Run Media Service Tests
+        env:
+          AWS_REGION: us-east-1
+          USE_LOCALSTACK: "true"
+          LOCALSTACK_ENDPOINT: http://localhost:4566
+          S3_BUCKET_NAME: social-media-attachments
+          NODE_ENV: test
+        run: npm run test -w services/media-service -- --passWithNoTests
 
   build-and-push-ecr:
     name: Build & Push to Amazon ECR

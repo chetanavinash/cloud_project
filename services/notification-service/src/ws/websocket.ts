@@ -12,6 +12,7 @@ export async function websocketRoutes(fastify: FastifyInstance) {
     handler: async (connection, request) => {
       let userId: string | undefined = undefined;
       const connId = crypto.randomUUID();
+      console.log(`[WS Server] Connection request received, query:`, request.query);
 
       try {
         const queryToken = (request.query as any)?.token;
@@ -25,6 +26,7 @@ export async function websocketRoutes(fastify: FastifyInstance) {
         }
 
         const mockUserId = request.headers['x-mock-user-id'] || (request.query as any)?.['x-mock-user-id'];
+        console.log(`[WS Server] mockUserId:`, mockUserId, `token:`, token);
 
         if (mockUserId) {
           userId = mockUserId as string;
@@ -36,7 +38,10 @@ export async function websocketRoutes(fastify: FastifyInstance) {
           }
         }
 
+        console.log(`[WS Server] Resolved userId:`, userId);
+
         if (!userId) {
+          console.warn(`[WS Server] No userId resolved, rejecting connection.`);
           connection.socket.send(JSON.stringify({ error: 'Unauthorized' }));
           connection.socket.close(4001, 'Unauthorized');
           return;
@@ -44,6 +49,7 @@ export async function websocketRoutes(fastify: FastifyInstance) {
 
         // Add to active connections map
         connectionManager.addConnection(userId, connId, connection.socket);
+        console.log(`[WS Server] WebSocket connection established and added to ConnectionManager for user: ${userId} (${connId})`);
         request.log.info(`WebSocket connection established for user: ${userId} (${connId})`);
 
         // Send connection acknowledgment
@@ -52,13 +58,16 @@ export async function websocketRoutes(fastify: FastifyInstance) {
           message: 'Connected to real-time notification feed',
           userId,
         }));
+        console.log(`[WS Server] Sent WELCOME message to user: ${userId}`);
 
         connection.socket.on('close', () => {
+          console.log(`[WS Server] WebSocket closed event for user: ${userId} (${connId})`);
           connectionManager.removeConnection(userId!, connId);
           request.log.info(`WebSocket connection closed for user: ${userId} (${connId})`);
         });
 
         connection.socket.on('error', (err) => {
+          console.error(`[WS Server] WebSocket error event for user: ${userId} (${connId})`, err);
           request.log.error(err, `WebSocket connection error for user: ${userId}`);
           connectionManager.removeConnection(userId!, connId);
         });
