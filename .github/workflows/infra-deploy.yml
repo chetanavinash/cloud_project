@@ -1,0 +1,88 @@
+name: AWS Infrastructure Provisioning
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action (apply or destroy)'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
+
+jobs:
+  terraform:
+    name: Terraform CLI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.7"
+
+      - name: Restore Terraform State
+        run: |
+          git fetch origin
+          # Try to pull the state from the terraform-state branch
+          if git show origin/terraform-state:state/terraform.tfstate > infra/terraform/terraform.tfstate 2>/dev/null; then
+            echo "✅ Successfully restored terraform.tfstate from terraform-state branch"
+          else
+            echo "ℹ️ No previous terraform state found on terraform-state branch. Proceeding fresh."
+          fi
+
+      - name: Terraform Init
+        working-directory: infra/terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: infra/terraform
+        run: terraform plan
+
+      - name: Terraform Apply/Destroy
+        working-directory: infra/terraform
+        run: |
+          if [ "${{ github.event.inputs.action }}" = "destroy" ]; then
+            terraform destroy -auto-approve
+          else
+            terraform apply -auto-approve
+          fi
+
+      - name: Commit and Push Terraform State
+        if: always()
+        run: |
+          # Only run if a tfstate file exists
+          if [ -f infra/terraform/terraform.tfstate ]; then
+            git config --global user.name "GitHub Actions"
+            git config --global user.email "actions@github.com"
+            
+            # Create a separate folder and copy the tfstate file
+            mkdir -p state
+            cp infra/terraform/terraform.tfstate state/terraform.tfstate
+            
+            # Switch to local terraform-state branch (create if not exists)
+            git checkout -b terraform-state 2>/dev/null || git checkout terraform-state
+            
+            # Add and commit the file
+            git add state/terraform.tfstate
+            git commit -m "chore: update terraform state [skip ci]" || true
+            
+            # Push changes to origin terraform-state
+            git push origin terraform-state --force
+            echo "✅ Successfully saved updated terraform.tfstate to remote terraform-state branch"
+          else
+            echo "⚠️ No terraform.tfstate file found to save."
+          fi
