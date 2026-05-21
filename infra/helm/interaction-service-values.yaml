@@ -1,0 +1,40 @@
+replicaCount: 2
+
+image:
+  repository: "" # Overridden by CI/CD
+  pullPolicy: IfNotPresent
+  tag: "latest" # Overridden by CI/CD
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3003
+
+resources:
+  limits:
+    cpu: 250m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+env:
+  - name: PORT
+    value: "3003"
+  - name: NODE_ENV
+    value: "production"
+  - name: AWS_REGION
+    value: "us-east-1"
+  - name: USE_LOCALSTACK
+    value: "false"
+  - name: DATABASE_URL
+    valueFrom:
+      secretKeyRef:
+        name: app-secrets
+        key: interaction-database-url

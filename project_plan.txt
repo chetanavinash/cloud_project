@@ -1,0 +1,201 @@
+Project overview — social media platform
+A full-stack, cloud-native social media platform built from scratch to production. 10 weeks total across 5 phases. You will build 8 microservices, deploy them on EKS, wire up 14 AWS services, and implement the hybrid fan-out feed system that powers platforms like Twitter and Instagram.
+10 weeks total 8 microservices 14 AWS services Solo buildable
+
+
+Full tech stack
+Frontend
+React 18, TypeScript, TailwindCSS, React Query, Zustand, Vite
+Backend
+Node.js, Express / Fastify, TypeScript, Prisma ORM
+Databases
+Aurora PostgreSQL, DynamoDB, ElastiCache (Redis)
+Messaging
+SQS (fan-out workers), SNS (notifications), Redis Pub/Sub
+Infrastructure
+Terraform, EKS, Helm, ArgoCD, ECR, VPC
+Auth
+AWS Cognito, JWT, OAuth2 (Google), API Gateway authorizers
+Media
+S3, Lambda (resize), MediaConvert, CloudFront CDN
+Observability
+CloudWatch, X-Ray, Prometheus, Grafana, structured logging
+CI/CD
+GitHub Actions, CodeBuild, ECR, ArgoCD GitOps
+Security
+WAF, Secrets Manager, KMS, IRSA, Network Policies
+8 microservices you will build
+User service — registration, profiles, follow/unfollow, follower counts, user search
+Post service — create, delete, get posts, hashtag parsing, media attachment
+Feed service — hybrid fan-out assembly, timeline pagination, cache invalidation
+Interaction service — likes, comments, reposts, bookmarks, counters
+Notification service — real-time alerts, email via SES, unread badge counts
+Search service — user search, hashtag search, full-text post search via OpenSearch
+Media service — upload, resize to 4 resolutions, video transcode, CDN URLs
+Analytics service — post impressions, profile visits, follower growth events
+That's your complete 10-week plan — click through each phase tab for the full week-by-week breakdown with every task, deliverable, and AWS service involved.
+A few things worth highlighting about how this plan is structured:
+The first two weeks are entirely infrastructure — no application code. This is the professional way to do it. Most people jump straight to writing features and then spend week 7 trying to figure out Terraform while also debugging their app. Setting up EKS, Aurora, ElastiCache, CI/CD, and ArgoCD first means every week after that is just git push to deploy.
+Phase 3 (the feed engine) is where you should expect to spend the most debugging time. The fan-out worker sounds simple but the edge cases are tricky — what happens if a SQS message is processed twice? What if Redis is full? What if the follower list DynamoDB query takes 3 pages? Budget extra time here.
+Week 10 is not optional. The demo video and the blog post are what get this project noticed. A GitHub repo with no README and no demo is invisible. Engineers have been hired specifically because a recruiter found their blog post explaining the Twitter fan-out problem.
+Use the buttons at the bottom of each phase to get the actual code — I can give you the Terraform, the complete service code, Helm charts, k6 scripts, or whatever you need for any specific week.
+Phase 1 — Foundation & infrastructure (weeks 1–2)
+Set up everything before writing a single line of application code. AWS account structure, VPC, EKS cluster, databases, CI/CD pipeline, and local development environment. A solid foundation here prevents 80% of later problems.
+Weeks 1–2 Infrastructure first Zero app code yet
+Week 1
+AWS setup, networking & cluster
+Create AWS account, set up IAM admin user, enable MFA, configure AWS CLI and credentials
+Write Terraform for VPC — 3 public subnets, 3 private subnets across 3 AZs, NAT gateway, Internet gateway, route tables
+Provision EKS cluster (v1.29) with Terraform — 2 node groups: general (t3.medium x3) and memory-optimized for Redis workloads
+Install EKS add-ons: AWS Load Balancer Controller, EBS CSI driver, CoreDNS, kube-proxy, VPC CNI
+Set up kubectl, configure kubeconfig, verify cluster connectivity, deploy a test nginx pod
+Create ECR repositories for all 8 microservices and the frontend
+Set up Kubernetes namespaces: dev, staging, production, monitoring
+EKSVPCECRIAMTerraform
+Working EKS cluster reachable from your machine
+Week 2
+Databases, secrets, CI/CD pipeline
+Provision Aurora PostgreSQL cluster (Multi-AZ) in private subnets via Terraform. Create separate databases per microservice (user_db, post_db, etc.)
+Provision ElastiCache Redis cluster (cluster mode, 3 shards) for feed caching, session storage, rate limiting
+Create DynamoDB tables: PostLikes, PostComments, UserFollows, FeedItems, Notifications — define GSIs for all access patterns now
+Store all DB credentials, API keys in Secrets Manager. Configure IRSA so each K8s service account can only read its own secrets
+Set up Cognito User Pool — enable Google OAuth, configure JWT token expiry, create app clients for web and API
+Build GitHub Actions CI pipeline: lint → test → docker build → push to ECR on every PR merge to main
+Install ArgoCD on EKS. Create ArgoCD applications pointing to your Helm chart repo. Test with a dummy deployment
+Set up local dev environment: Docker Compose with local Postgres, Redis, and LocalStack for AWS service mocking
+AuroraElastiCacheDynamoDBCognitoSecrets ManagerArgoCD
+Full infra provisioned. CI pipeline pushes images to ECR. ArgoCD deploys to EKS on git push.
+
+
+Phase 2 — Core microservices (weeks 3–5)
+Build the user service, post service, media service, and interaction service. Wire them to the databases. Write Kubernetes manifests for each. Get a working end-to-end flow: register → login → create post with image → like it.
+Weeks 3–5 4 microservices First working demo
+Week 3
+User service + auth flow
+Scaffold Node.js + TypeScript + Fastify project. Set up Prisma with Aurora. Define User, Follow schema with migrations
+Build endpoints: POST /register, POST /login (Cognito), GET /users/:id, PUT /users/:id (update profile), DELETE /users/:id
+Build follow system: POST /users/:id/follow, DELETE /users/:id/follow, GET /users/:id/followers (paginated), GET /users/:id/following
+Implement Cognito JWT validation middleware — verify token on every protected route, extract userId from claims
+Write Dockerfile (multi-stage build), Helm chart with Deployment, Service, HPA, ConfigMap, ServiceAccount with IRSA annotation
+Write unit tests with Jest. Integration tests against local Postgres via Docker Compose. Target 70% coverage
+Deploy to EKS dev namespace via ArgoCD. Verify with curl. Set up basic CloudWatch log group
+AuroraCognitoEKSSecrets Manager
+Register, login, follow/unfollow working end-to-end on EKS
+Week 4
+Post service + media pipeline
+Build Post service: POST /posts (create with text + optional media), GET /posts/:id, DELETE /posts/:id, GET /users/:id/posts (paginated)
+Parse hashtags on post creation — extract and store in a PostHashtags table in Aurora for search later
+Build Media service: generate S3 presigned upload URL, return it to client. Client uploads directly to S3 (never through your server)
+Write Lambda function triggered on S3 PutObject event — uses Sharp to resize image to 4 sizes (thumbnail, small, medium, large), saves back to S3 under /processed/ prefix
+Configure CloudFront distribution pointing to S3. All media URLs returned to clients use CloudFront domain, not S3 directly
+For video: S3 trigger invokes Lambda which submits a MediaConvert job to transcode to HLS. Store CloudFront HLS URL in post record once complete
+Write Helm charts for both services. Deploy to EKS. Test full flow: upload image → get CloudFront URL → create post with URL
+S3LambdaCloudFrontMediaConvertAurora
+Image posts work. CloudFront serves resized images. Video transcoding pipeline functional.
+Week 5
+Interaction service + API Gateway
+Build Interaction service using DynamoDB — PK=postId, SK=userId for likes. Enables O(1) like/unlike and "did this user like this post?" checks
+Implement like counter buffering: increment a Redis counter on like. A Lambda cron runs every 30s and batch-flushes counts to Aurora. Prevents write storms on viral posts
+Build comments: POST /posts/:id/comments, GET /posts/:id/comments (threaded, paginated), DELETE /comments/:id. Store in DynamoDB
+Implement reposts and bookmarks — DynamoDB tables with GSI on userId for "my bookmarks" and "my reposts" queries
+Set up API Gateway HTTP API as the single entry point for all microservices. Configure routes, Cognito JWT authorizer, and VPC Link to reach EKS pods
+Configure WAF on API Gateway — rate limit to 100 req/min per IP on post creation, block common injection patterns
+Build the React frontend skeleton: auth pages, profile page, post creation form with image upload. Wire to real APIs
+DynamoDBElastiCacheAPI GatewayWAFCognito
+Full working app: register, post, like, comment, bookmark. Frontend connected to real AWS APIs.
+
+
+
+Phase 3 — Feed engine & notifications (weeks 6–7)
+
+The hardest and most impressive part. Build the hybrid fan-out feed system and the real-time notification service. This is the engineering that separates this project from a basic CRUD app.
+
+Weeks 6–7 Hardest phase Fan-out + real-time
+Week 6
+
+Hybrid fan-out feed engine
+
+Design Redis data structure: each user's feed is a sorted set — key is feed:{userId}, score is post timestamp (Unix ms), value is postId. Capped at 800 items max per user
+When a post is created, Post service publishes a PostCreated event to SNS. SNS fans out to two SQS queues: FanoutQueue (for regular users) and AnalyticsQueue
+Build Fan-out Worker as a separate EKS deployment. It consumes FanoutQueue messages. For each post: check author follower count. If under 10k followers, fetch all follower IDs from DynamoDB (paginated GSI query) and ZADD the postId to each follower's Redis feed sorted set
+For celebrity users (10k+ followers): skip fan-out. Store a "celebrity follows" list per user in Redis. At feed read time, merge celebrity posts from a shared celebrity:{userId} sorted set into the user's personal feed
+Build Feed service GET /feed endpoint: ZREVRANGE feed:{userId} 0 19 from Redis to get top 20 postIds by score. Batch-fetch post details from Post service. Merge in celebrity posts. Return hydrated feed with cursor for pagination
+Handle feed gaps: if Redis feed has fewer than 5 items (new user or cache miss), fall back to a direct Aurora query joining follows and posts ordered by created_at. Backfill Redis async
+HPA on Fan-out Worker deployment based on SQS queue depth (custom metric via KEDA or CloudWatch metric adapter). Scales 1→20 pods under viral load
+SQS
+SNS
+ElastiCache
+DynamoDB
+EKS HPA
+Post by user A appears in all followers' feeds within 2 seconds. Celebrity posts merge correctly at read time.
+Week 7
+
+Notification service + search
+
+Build Notification service. Subscribes to SNS topics: PostLiked, PostCommented, UserFollowed, PostReposted. On each event, write a notification row to DynamoDB with userId, type, actorId, postId, read=false, createdAt
+Unread notification count: INCR notif:unread:{userId} in Redis on each new notification. Reset to 0 on GET /notifications (mark all read)
+API Gateway WebSocket API for real-time in-app notifications. On connect, Lambda stores connectionId → userId mapping in DynamoDB. On new notification, Notification service calls API Gateway Management API to push to live connection
+Email notifications via SES: first-time follower, weekly digest. Use SES templates. Rate-limit emails per user to avoid spam (Redis counter: email:{userId}:{date})
+Build Search service using OpenSearch (or Aurora full-text search for simpler setup). Index users (username, bio) and posts (content, hashtags). Endpoints: GET /search/users?q=, GET /search/posts?q=, GET /search/hashtags?q=
+Post service publishes PostCreated events consumed by Search service to index new posts in near-real-time via SQS
+Wire notifications bell in React frontend. WebSocket client reconnects on disconnect. Unread count badge updates in real time
+API Gateway WS
+SES
+DynamoDB
+SNS
+ElastiCache
+Real-time notification bell works. Like on a post → author sees it instantly. Search returns users and posts.
+
+
+
+Phase 4 — Frontend, observability & security (week 8)
+Polish the React frontend to a real product feel. Wire up distributed tracing across all 8 services. Harden security. This is where the project goes from a tech demo to something you can proudly show.
+Week 8 Frontend polish Observability
+Week 8 — Part A
+Frontend completion
+Home feed page: infinite scroll with React Query + cursor pagination, optimistic like/unlike updates, skeleton loading states
+Profile page: avatar, bio, post grid, followers/following counts with modal lists, follow button with instant optimistic update
+Post detail page: full post, threaded comments, repost/bookmark actions, share link
+Post composer: rich text, image drag-and-drop upload with preview, character counter, hashtag autocomplete
+Notifications page: grouped by type (likes, comments, follows), mark-all-read, real-time badge via WebSocket
+Search page: debounced search input, results tabbed by users/posts/hashtags, follow from search results
+Build React app with Vite, deploy static files to S3, serve via CloudFront. Set up Route 53 domain with SSL cert via ACM
+S3CloudFrontRoute 53ACM
+Full working UI on a real domain with HTTPS. Looks and feels like a real social app.
+Week 8 — Part B
+Observability & security hardening
+Add X-Ray SDK to all 8 services. Instrument every HTTP handler and DB call. Configure X-Ray daemon as a sidecar in each K8s pod. Verify traces show full request path across services in AWS console
+Install Prometheus + Grafana on EKS monitoring namespace via Helm. Configure ServiceMonitor for each microservice. Build Grafana dashboard: feed latency p50/p95/p99, SQS queue depth, Redis hit rate, error rate per service
+Structured logging in every service: JSON logs with traceId, userId, requestId, duration. Ship to CloudWatch Logs. Create CloudWatch metric filters for error rate alarms
+Apply Kubernetes Network Policies: each service can only talk to its own database and the services it explicitly needs. No pod-to-pod free-for-all
+Enable KMS encryption for Aurora, ElastiCache, DynamoDB, S3. Rotate Secrets Manager secrets on a schedule
+WAF rules on CloudFront: geo-blocking, rate limiting on API routes, SQL injection and XSS protection managed rules
+Run AWS Trusted Advisor and Security Hub scan. Fix all critical findings before final deployment
+X-RayCloudWatchPrometheusKMSWAF
+Full distributed traces. Grafana dashboards live. Security hardened and verified
+
+Phase 5 — Load testing, production deploy & documentation (weeks 9–10)
+Prove the system works under load. Deploy to production. Write architecture docs. Record a demo video. This is what turns the project into a portfolio piece that gets you hired.
+Weeks 9–10 Production ready Portfolio ready
+Week 9
+Load testing & production hardening
+Write k6 load test scripts: simulate 500 concurrent users creating posts, fetching feeds, liking posts. Run against staging. Target: feed endpoint p95 under 200ms
+Simulate viral post: one user followed by 5000 others creates a post. Measure fan-out worker scaling via HPA. Verify all 5000 feeds updated within 30 seconds
+Tune ElastiCache connection pools, Aurora max_connections, and DynamoDB provisioned capacity based on load test results
+Implement pod disruption budgets for all services — ensure at least 1 replica always running during node drain or deploy
+Configure Aurora read replicas. Route all GET endpoints to the read replica. Only writes go to the primary
+Set up CloudWatch alarms: SQS queue depth > 10k, feed latency p95 > 500ms, error rate > 1%, ElastiCache memory > 80%
+Chaos test: manually kill a pod mid-request. Verify graceful shutdown, no 5xx to clients, ArgoCD auto-restarts it
+k6CloudWatch AlarmsAurora replicasHPA
+System handles 500 concurrent users. Fan-out scales automatically. No single point of failure.
+Week 10
+Production deployment & portfolio wrap-up
+Promote staging ArgoCD apps to production namespace. Verify all environment variables, secrets, and database connections in prod
+Configure Route 53 health checks on all API endpoints. Set up CloudWatch Synthetics canary pinging the feed API every minute
+Set up AWS Budgets alert at $50/month to avoid bill shock. Review and right-size all resources (use t3.small for low-traffic services)
+Write architecture README: system design diagram, every AWS service and why it was chosen, the fan-out design decision, tradeoffs made
+Record a 5-minute demo video: show feed updating in real time across two browser tabs, show Grafana dashboard under load, show X-Ray trace of a post creation end-to-end
+Write a detailed blog post / LinkedIn article explaining the fan-out architecture and the tradeoffs. This alone gets attention from engineers
+Push all Terraform, Helm charts, and application code to a public GitHub repo with a polished README
+Route 53CloudWatch SyntheticsAWS BudgetsArgoCD
+Live on a real domain. Public GitHub repo. Demo video recorded. Ready for interviews.

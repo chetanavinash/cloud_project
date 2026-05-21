@@ -1,0 +1,45 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/@prisma/client"
+}
+
+model Post {
+  id        String        @id @default(uuid())
+  authorId  String        // References the user's ID/sub
+  content   String        // Text content of the post
+  mediaUrl  String?       // Optional media attachment link
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  
+  hashtags  PostHashtag[]
+
+  @@index([authorId])
+  @@index([createdAt(sort: Desc)])
+}
+
+model PostHashtag {
+  id     String @id @default(uuid())
+  postId String
+  tag    String // The tag keyword lowercase, e.g., 'growth'
+
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([tag])
+}
+
+model Story {
+  id        String   @id @default(uuid())
+  authorId  String
+  mediaUrl  String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([authorId])
+  @@index([createdAt(sort: Desc)])
+}

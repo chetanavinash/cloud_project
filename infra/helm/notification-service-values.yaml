@@ -1,0 +1,47 @@
+replicaCount: 2
+
+image:
+  repository: "" # Overridden by CI/CD
+  pullPolicy: IfNotPresent
+  tag: "latest" # Overridden by CI/CD
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3005
+
+resources:
+  limits:
+    cpu: 250m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+env:
+  - name: PORT
+    value: "3005"
+  - name: NODE_ENV
+    value: "production"
+  - name: AWS_REGION
+    value: "us-east-1"
+  - name: USE_LOCALSTACK
+    value: "false"
+  - name: DYNAMODB_TABLE
+    value: "Notifications"
+  - name: SQS_QUEUE_URL
+    valueFrom:
+      secretKeyRef:
+        name: app-secrets
+        key: notification-sqs-queue-url
+  - name: SNS_TOPIC_ARN
+    valueFrom:
+      secretKeyRef:
+        name: app-secrets
+        key: notification-sns-topic-arn

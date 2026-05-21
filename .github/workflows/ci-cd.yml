@@ -1,0 +1,208 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-and-test:
+    name: Lint & Test Microservices
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install Root Dependencies
+        run: npm ci
+
+      - name: Lint Codebases
+        run: npm run lint --workspaces --if-present
+
+      - name: Run Unit Tests
+        run: npm run test --workspaces --if-present
+
+  build-and-push-ecr:
+    name: Build & Push to Amazon ECR
+    needs: lint-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 1. Build, Tag, and Push User Service
+      - name: Build, Tag, and Push User Service
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/dev-user-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-user-service:latest ./services/user-service
+          docker push $ECR_REGISTRY/dev-user-service:$IMAGE_TAG
+          docker push $ECR_REGISTRY/dev-user-service:latest
+
+      # 2. Build, Tag, and Push Post Service
+      - name: Build, Tag, and Push Post Service
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/dev-post-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-post-service:latest ./services/post-service
+          docker push $ECR_REGISTRY/dev-post-service:$IMAGE_TAG
+          docker push $ECR_REGISTRY/dev-post-service:latest
+
+      # 3. Build, Tag, and Push Interaction Service
+      - name: Build, Tag, and Push Interaction Service
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/dev-interaction-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-interaction-service:latest ./services/interaction-service
+          docker push $ECR_REGISTRY/dev-interaction-service:$IMAGE_TAG
+          docker push $ECR_REGISTRY/dev-interaction-service:latest
+
+      # 4. Build, Tag, and Push Feed Service
+      - name: Build, Tag, and Push Feed Service
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/dev-feed-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-feed-service:latest ./services/feed-service
+          docker push $ECR_REGISTRY/dev-feed-service:$IMAGE_TAG
+          docker push $ECR_REGISTRY/dev-feed-service:latest
+
+      # 5. Build, Tag, and Push Notification Service
+      - name: Build, Tag, and Push Notification Service
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/dev-notification-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-notification-service:latest ./services/notification-service
+          docker push $ECR_REGISTRY/dev-notification-service:$IMAGE_TAG
+          docker push $ECR_REGISTRY/dev-notification-service:latest
+
+      # 6. Build, Tag, and Push Search Service
+      - name: Build, Tag, and Push Search Service
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/dev-search-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-search-service:latest ./services/search-service
+          docker push $ECR_REGISTRY/dev-search-service:$IMAGE_TAG
+          docker push $ECR_REGISTRY/dev-search-service:latest
+
+      # 7. Build, Tag, and Push Media Service
+      - name: Build, Tag, and Push Media Service
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/dev-media-service:$IMAGE_TAG -t $ECR_REGISTRY/dev-media-service:latest ./services/media-service
+          docker push $ECR_REGISTRY/dev-media-service:$IMAGE_TAG
+          docker push $ECR_REGISTRY/dev-media-service:latest
+
+      # 8. Build, Tag, and Push Frontend
+      - name: Build, Tag, and Push Frontend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/dev-frontend:$IMAGE_TAG -t $ECR_REGISTRY/dev-frontend:latest -f ./frontend/Dockerfile .
+          docker push $ECR_REGISTRY/dev-frontend:$IMAGE_TAG
+          docker push $ECR_REGISTRY/dev-frontend:latest
+
+  deploy-eks:
+    name: Deploy to Amazon EKS
+    needs: build-and-push-ecr
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Update kubeconfig for EKS Cluster
+        run: |
+          aws eks update-kubeconfig --name social-media-eks --region us-east-1
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.13.0'
+
+      - name: Deploy All 8 Services to Kubernetes
+        env:
+          ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Deploy user-service
+          helm upgrade --install user-service ./infra/helm/social-service \
+            -f ./infra/helm/user-service-values.yaml \
+            --set image.repository=$ECR_REGISTRY/dev-user-service \
+            --set image.tag=$IMAGE_TAG
+
+          # Deploy post-service
+          helm upgrade --install post-service ./infra/helm/social-service \
+            -f ./infra/helm/post-service-values.yaml \
+            --set image.repository=$ECR_REGISTRY/dev-post-service \
+            --set image.tag=$IMAGE_TAG
+
+          # Deploy interaction-service
+          helm upgrade --install interaction-service ./infra/helm/social-service \
+            -f ./infra/helm/interaction-service-values.yaml \
+            --set image.repository=$ECR_REGISTRY/dev-interaction-service \
+            --set image.tag=$IMAGE_TAG
+
+          # Deploy feed-service
+          helm upgrade --install feed-service ./infra/helm/social-service \
+            -f ./infra/helm/feed-service-values.yaml \
+            --set image.repository=$ECR_REGISTRY/dev-feed-service \
+            --set image.tag=$IMAGE_TAG
+
+          # Deploy notification-service
+          helm upgrade --install notification-service ./infra/helm/social-service \
+            -f ./infra/helm/notification-service-values.yaml \
+            --set image.repository=$ECR_REGISTRY/dev-notification-service \
+            --set image.tag=$IMAGE_TAG
+
+          # Deploy search-service
+          helm upgrade --install search-service ./infra/helm/social-service \
+            -f ./infra/helm/search-service-values.yaml \
+            --set image.repository=$ECR_REGISTRY/dev-search-service \
+            --set image.tag=$IMAGE_TAG
+
+          # Deploy media-service
+          helm upgrade --install media-service ./infra/helm/social-service \
+            -f ./infra/helm/media-service-values.yaml \
+            --set image.repository=$ECR_REGISTRY/dev-media-service \
+            --set image.tag=$IMAGE_TAG
+
+          # Deploy frontend
+          helm upgrade --install frontend ./infra/helm/social-service \
+            -f ./infra/helm/frontend-values.yaml \
+            --set image.repository=$ECR_REGISTRY/dev-frontend \
+            --set image.tag=$IMAGE_TAG

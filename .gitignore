@@ -1,0 +1,36 @@
+# Node
+node_modules/
+dist/
+build/
+.npm
+*.log
+
+# Environments
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Databases & local development
+.localstack/
+postgres-data/
+redis-data/
+dynamodb-data/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl

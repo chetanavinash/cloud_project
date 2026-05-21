@@ -1,0 +1,54 @@
+# Default values for social-service.
+# This is a YAML-formatted file.
+
+replicaCount: 2
+
+image:
+  repository: "" # Overridden by CI/CD
+  pullPolicy: IfNotPresent
+  tag: "latest" # Overridden by CI/CD
+
+serviceAccount:
+  create: true
+  annotations: {} # Will hold IRSA Role ARN e.g., eks.amazonaws.com/role-arn
+  name: ""
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+ingress:
+  enabled: false
+  className: "alb"
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+  hosts:
+    - host: api.socialmedia.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+
+env: []
+# - name: NODE_ENV
+#   value: production
+# - name: DATABASE_URL
+#   valueFrom:
+#     secretKeyRef:
+#       name: service-secrets
+#       key: database-url

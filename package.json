@@ -1,0 +1,20 @@
+{
+  "name": "social-media-platform",
+  "version": "1.0.0",
+  "description": "Full-stack cloud-native social media platform",
+  "private": true,
+  "workspaces": [
+    "services/*",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently -n \"user,post,interaction,feed,notification,search,media,frontend\" -c \"blue,green,magenta,cyan,yellow,white,gray,red\" \"npm run dev -w services/user-service\" \"npm run dev -w services/post-service\" \"npm run dev -w services/interaction-service\" \"npm run dev -w services/feed-service\" \"npm run dev -w services/notification-service\" \"npm run dev -w services/search-service\" \"npm run dev -w services/media-service\" \"npm run dev -w frontend\"",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "tsx": "^4.7.1",
+    "typescript": "^5.3.3"
+  }
+}
