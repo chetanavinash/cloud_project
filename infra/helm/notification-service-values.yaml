@@ -30,7 +30,7 @@ env:
   - name: NODE_ENV
     value: "production"
   - name: AWS_REGION
-    value: "us-east-1"
+    value: "ap-south-1"
   - name: USE_LOCALSTACK
     value: "false"
   - name: DYNAMODB_TABLE

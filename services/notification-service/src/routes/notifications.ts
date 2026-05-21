@@ -48,7 +48,7 @@ export async function notificationRoutes(fastify: FastifyInstance) {
   });
 
   // POST /notifications/:id/read - Mark notification as read
-  fastify.post('/notifications/:id/read', { preHandler: verifyJWT }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.post<{ Params: { id: string } }>('/notifications/:id/read', { preHandler: verifyJWT }, async (request, reply) => {
     const userId = request.user!.sub;
     const { id } = request.params;
 

@@ -86,7 +86,7 @@ export async function postRoutes(fastify: FastifyInstance) {
   });
 
   // 2. GET /posts/:id (Get Single Post - Public)
-  fastify.get('/posts/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.get<{ Params: { id: string } }>('/posts/:id', async (request, reply) => {
     const { id } = request.params;
 
     try {
@@ -159,10 +159,7 @@ export async function postRoutes(fastify: FastifyInstance) {
   });
 
   // 4. GET /users/:id/posts (Get User Posts - Paginated)
-  fastify.get('/users/:id/posts', async (
-    request: FastifyRequest<{ Params: { id: string }, Querystring: { limit?: string, cursor?: string } }>, 
-    reply: FastifyReply
-  ) => {
+  fastify.get<{ Params: { id: string }, Querystring: { limit?: string, cursor?: string } }>('/users/:id/posts', async (request, reply) => {
     const { id } = request.params;
     const limit = Math.min(Number(request.query.limit) || 20, 100);
     const cursor = request.query.cursor; // cursor is post UUID

@@ -91,7 +91,7 @@ describe('Notification Service API & WS Integration Tests', () => {
         console.log('WebSocket connection opened successfully in test client.');
       });
 
-      ws.on('message', (data) => {
+      ws.on('message', (data: any) => {
         console.log('WebSocket client received message:', data.toString());
         const payload = JSON.parse(data.toString());
         if (payload.type === 'NOTIFICATION') {
@@ -102,13 +102,13 @@ describe('Notification Service API & WS Integration Tests', () => {
         }
       });
 
-      ws.on('error', (err) => {
+      ws.on('error', (err: any) => {
         console.error('WebSocket client error:', err);
         clearTimeout(timeout);
         reject(err);
       });
 
-      ws.on('close', (code, reason) => {
+      ws.on('close', (code: any, reason: any) => {
         console.log(`WebSocket client closed. Code: ${code}, Reason: ${reason.toString()}`);
       });
     });

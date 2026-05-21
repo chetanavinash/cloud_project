@@ -13,7 +13,7 @@ const createCommentSchema = z.object({
 export async function interactionRoutes(fastify: FastifyInstance) {
   
   // 1. POST /posts/:id/like (Like Post)
-  fastify.post('/posts/:id/like', { preHandler: verifyJWT }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.post<{ Params: { id: string } }>('/posts/:id/like', { preHandler: verifyJWT }, async (request, reply) => {
     const postId = request.params.id;
     const userId = request.user!.sub;
 
@@ -41,7 +41,7 @@ export async function interactionRoutes(fastify: FastifyInstance) {
   });
 
   // 2. DELETE /posts/:id/like (Unlike Post)
-  fastify.delete('/posts/:id/like', { preHandler: verifyJWT }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.delete<{ Params: { id: string } }>('/posts/:id/like', { preHandler: verifyJWT }, async (request, reply) => {
     const postId = request.params.id;
     const userId = request.user!.sub;
 
@@ -70,7 +70,7 @@ export async function interactionRoutes(fastify: FastifyInstance) {
   });
 
   // 3. GET /posts/:id/like-status (Get Post Like Counts & Status)
-  fastify.get('/posts/:id/like-status', { preHandler: verifyJWT }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.get<{ Params: { id: string } }>('/posts/:id/like-status', { preHandler: verifyJWT }, async (request, reply) => {
     const postId = request.params.id;
     const userId = request.user!.sub;
 
@@ -95,7 +95,7 @@ export async function interactionRoutes(fastify: FastifyInstance) {
   });
 
   // 4. POST /posts/:id/comments (Create Comment)
-  fastify.post('/posts/:id/comments', { preHandler: verifyJWT }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.post<{ Params: { id: string } }>('/posts/:id/comments', { preHandler: verifyJWT }, async (request, reply) => {
     const postId = request.params.id;
     const authorId = request.user!.sub;
 
@@ -133,10 +133,7 @@ export async function interactionRoutes(fastify: FastifyInstance) {
   });
 
   // 5. GET /posts/:id/comments (Get Post Comments - Paginated & Threaded)
-  fastify.get('/posts/:id/comments', async (
-    request: FastifyRequest<{ Params: { id: string }, Querystring: { limit?: string, cursor?: string } }>, 
-    reply: FastifyReply
-  ) => {
+  fastify.get<{ Params: { id: string }, Querystring: { limit?: string, cursor?: string } }>('/posts/:id/comments', async (request, reply) => {
     const postId = request.params.id;
     const limit = Math.min(Number(request.query.limit) || 20, 100);
     const cursor = request.query.cursor; // cursor is comment UUID
@@ -174,7 +171,7 @@ export async function interactionRoutes(fastify: FastifyInstance) {
   });
 
   // 6. DELETE /comments/:id (Delete Comment)
-  fastify.delete('/comments/:id', { preHandler: verifyJWT }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.delete<{ Params: { id: string } }>('/comments/:id', { preHandler: verifyJWT }, async (request, reply) => {
     const { id } = request.params;
     const authorId = request.user!.sub;
 
@@ -199,7 +196,7 @@ export async function interactionRoutes(fastify: FastifyInstance) {
   });
 
   // 7. POST /posts/:id/bookmark (Bookmark Post)
-  fastify.post('/posts/:id/bookmark', { preHandler: verifyJWT }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.post<{ Params: { id: string } }>('/posts/:id/bookmark', { preHandler: verifyJWT }, async (request, reply) => {
     const postId = request.params.id;
     const userId = request.user!.sub;
 
@@ -226,7 +223,7 @@ export async function interactionRoutes(fastify: FastifyInstance) {
   });
 
   // 8. DELETE /posts/:id/bookmark (Remove Bookmark)
-  fastify.delete('/posts/:id/bookmark', { preHandler: verifyJWT }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  fastify.delete<{ Params: { id: string } }>('/posts/:id/bookmark', { preHandler: verifyJWT }, async (request, reply) => {
     const postId = request.params.id;
     const userId = request.user!.sub;
 
@@ -255,10 +252,7 @@ export async function interactionRoutes(fastify: FastifyInstance) {
   });
 
   // 9. GET /users/:id/bookmarks (Get User Bookmarks - Paginated)
-  fastify.get('/users/:id/bookmarks', { preHandler: verifyJWT }, async (
-    request: FastifyRequest<{ Params: { id: string }, Querystring: { limit?: string, cursor?: string } }>, 
-    reply: FastifyReply
-  ) => {
+  fastify.get<{ Params: { id: string }, Querystring: { limit?: string, cursor?: string } }>('/users/:id/bookmarks', { preHandler: verifyJWT }, async (request, reply) => {
     const { id } = request.params;
     const currentUserId = request.user!.sub;
     const limit = Math.min(Number(request.query.limit) || 20, 100);

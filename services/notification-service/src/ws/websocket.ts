@@ -5,11 +5,7 @@ import crypto from 'crypto';
 export async function websocketRoutes(fastify: FastifyInstance) {
   // Clients connect via ws://localhost:3005/ws?token=<JWT_TOKEN>
   // For testing, they can pass ?x-mock-user-id=<USER_ID>
-  fastify.route({
-    method: 'GET',
-    url: '/ws',
-    websocket: true,
-    handler: async (connection, request) => {
+  fastify.get('/ws', { websocket: true }, async (connection, request) => {
       let userId: string | undefined = undefined;
       const connId = crypto.randomUUID();
       console.log(`[WS Server] Connection request received, query:`, request.query);
@@ -77,6 +73,5 @@ export async function websocketRoutes(fastify: FastifyInstance) {
         connection.socket.send(JSON.stringify({ error: 'Unauthorized' }));
         connection.socket.close(4001, 'Unauthorized');
       }
-    }
   });
 }

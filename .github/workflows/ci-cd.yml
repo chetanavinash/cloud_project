@@ -136,7 +136,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ap-south-1
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -145,8 +145,8 @@ jobs:
       - name: Create ECR Repositories if they do not exist
         run: |
           for repo in dev-user-service dev-post-service dev-interaction-service dev-feed-service dev-notification-service dev-search-service dev-media-service dev-frontend; do
-            aws ecr describe-repositories --repository-names $repo --region us-east-1 || \
-            aws ecr create-repository --repository-name $repo --region us-east-1
+            aws ecr describe-repositories --repository-names $repo --region ap-south-1 || \
+            aws ecr create-repository --repository-name $repo --region ap-south-1
           done
       # 1. Build, Tag, and Push User Service
       - name: Build, Tag, and Push User Service
@@ -242,11 +242,11 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ap-south-1
 
       - name: Update kubeconfig for EKS Cluster
         run: |
-          aws eks update-kubeconfig --name social-media-eks --region us-east-1
+          aws eks update-kubeconfig --name social-media-eks --region ap-south-1
 
       - name: Install Helm
         uses: azure/setup-helm@v4
@@ -255,7 +255,7 @@ jobs:
 
       - name: Deploy All 8 Services to Kubernetes
         env:
-          ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+          ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com
           IMAGE_TAG: ${{ github.sha }}
         run: |
           # Deploy user-service

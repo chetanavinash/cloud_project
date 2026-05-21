@@ -1,4 +1,4 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyRequest, FastifyReply, RouteGenericInterface } from 'fastify';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { config } from '../config/index.js';
 
@@ -26,7 +26,10 @@ declare module 'fastify' {
   }
 }
 
-export async function verifyJWT(request: FastifyRequest, reply: FastifyReply) {
+export async function verifyJWT(
+  request: FastifyRequest<any>,
+  reply: FastifyReply<any, any, any, any>
+) {
   // Support mock bypass in development/test if x-mock-user-id header is provided
   if ((config.NODE_ENV === 'development' || config.NODE_ENV === 'test') && request.headers['x-mock-user-id']) {
     request.user = {
