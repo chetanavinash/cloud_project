@@ -47,7 +47,7 @@ resource "aws_security_group" "eks_cluster" {
 # ==============================================================================
 resource "aws_eks_cluster" "main" {
   name     = var.cluster_name
-  version  = "1.29"
+  version  = "1.28"
   role_arn = aws_iam_role.eks_cluster.arn
 
   vpc_config {
@@ -108,7 +108,8 @@ resource "aws_eks_node_group" "general" {
   node_role_arn   = aws_iam_role.eks_nodes.arn
   subnet_ids      = aws_subnet.private[*].id
 
-  instance_types = ["t3.medium"] # 2 vCPU, 4GB RAM - perfect for running multi-container workloads on a budget
+  instance_types = ["t3.medium"]
+  ami_type       = "AL2_x86_64"
 
   scaling_config {
     desired_size = 2

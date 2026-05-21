@@ -50,7 +50,7 @@ resource "aws_rds_cluster" "aurora" {
   database_name           = "postgres"
   master_username         = "postgres"
   master_password         = random_password.db_password.result
-  backup_retention_period = 5
+  backup_retention_period = 1
   preferred_backup_window = "07:00-09:00"
   db_subnet_group_name    = aws_db_subnet_group.db_subnet_group.name
   vpc_security_group_ids  = [aws_security_group.db_sg.id]
