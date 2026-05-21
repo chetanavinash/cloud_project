@@ -1,0 +1,192 @@
+name: AWS Infrastructure Cleanup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    name: Nuke Orphaned Dev Resources
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      - name: Execute Cleanup Script
+        run: |
+          echo "Starting cleanup of dev- prefixed resources in ap-south-1..."
+
+          # 0. Delete EKS Clusters if any matching dev EKS exists
+          echo "Checking EKS Clusters..."
+          eks_clusters=$(aws eks list-clusters --query "clusters[?starts_with(@, 'social-media-eks')]" --output text 2>/dev/null || true)
+          for cluster in $eks_clusters; do
+            echo "Deleting EKS Cluster: $cluster"
+            # List node groups
+            node_groups=$(aws eks list-node-groups --cluster-name $cluster --query "nodegroups" --output text 2>/dev/null || true)
+            for ng in $node_groups; do
+              echo "Deleting Node Group $ng in cluster $cluster"
+              aws eks delete-node-group --cluster-name $cluster --nodegroup-name $ng || true
+            done
+            
+            # Wait for node groups to delete
+            if [ -n "$node_groups" ]; then
+              echo "Waiting for node groups to delete..."
+              aws eks wait nodegroup-deleted --cluster-name $cluster --nodegroup-name $(echo $node_groups | awk '{print $1}') || true
+            fi
+            
+            aws eks delete-cluster --name $cluster || true
+          done
+
+          # 1. Cognito User Pool
+          echo "Checking Cognito User Pools..."
+          USER_POOLS=$(aws cognito-idp list-user-pools --max-results 60 --query "UserPools[?starts_with(Name, 'dev-')].Id" --output text 2>/dev/null || true)
+          for pool_id in $USER_POOLS; do
+            echo "Found User Pool: $pool_id"
+            # Delete Domain if any
+            domain=$(aws cognito-idp describe-user-pool --user-pool-id $pool_id --query "UserPool.Domain" --output text 2>/dev/null || true)
+            if [ "$domain" != "None" ] && [ -n "$domain" ]; then
+              echo "Deleting domain $domain for pool $pool_id"
+              aws cognito-idp delete-user-pool-domain --domain $domain --user-pool-id $pool_id || true
+            fi
+            echo "Deleting User Pool: $pool_id"
+            aws cognito-idp delete-user-pool --user-pool-id $pool_id || true
+          done
+
+          # 2. DynamoDB Tables
+          DYNAMO_TABLES=("dev-Notifications" "dev-UserFollows" "dev-PostLikes" "dev-PostComments" "dev-FeedItems")
+          for table in "${DYNAMO_TABLES[@]}"; do
+            echo "Deleting DynamoDB Table: $table"
+            aws dynamodb delete-table --table-name $table || true
+          done
+
+          # 3. Secrets Manager Secrets
+          echo "Deleting Secrets Manager Secret: dev-rds-db-credentials"
+          aws secretsmanager delete-secret --secret-id dev-rds-db-credentials --force-delete-without-recovery || true
+
+          # 4. ElastiCache Replication Groups & Subnet Groups
+          echo "Checking ElastiCache..."
+          elasticache_groups=$(aws elasticache describe-replication-groups --query "ReplicationGroups[?starts_with(ReplicationGroupId, 'dev-')].ReplicationGroupId" --output text 2>/dev/null || true)
+          for group in $elasticache_groups; do
+            echo "Deleting ElastiCache Group: $group"
+            aws elasticache delete-replication-group --replication-group-id $group --retain-primary-cluster false || true
+          done
+          
+          echo "Deleting ElastiCache Subnet Group: dev-redis-subnet-group"
+          aws elasticache delete-cache-subnet-group --cache-subnet-group-name dev-redis-subnet-group || true
+
+          # 5. RDS DB Instances, Clusters & Subnet Groups
+          echo "Checking RDS..."
+          rds_instances=$(aws rds describe-db-instances --query "DBInstances[?starts_with(DBInstanceIdentifier, 'dev-')].DBInstanceIdentifier" --output text 2>/dev/null || true)
+          for instance in $rds_instances; do
+            echo "Deleting RDS Instance: $instance"
+            aws rds delete-db-instance --db-instance-identifier $instance --skip-final-snapshot --delete-automated-backups || true
+          done
+
+          rds_clusters=$(aws rds describe-db-clusters --query "DBClusters[?starts_with(DBClusterIdentifier, 'dev-')].DBClusterIdentifier" --output text 2>/dev/null || true)
+          for cluster in $rds_clusters; do
+            echo "Deleting RDS Cluster: $cluster"
+            aws rds delete-db-cluster --db-cluster-identifier $cluster --skip-final-snapshot || true
+          done
+
+          echo "Deleting RDS DB Subnet Group: dev-db-subnet-group"
+          aws rds delete-db-subnet-group --db-subnet-group-name dev-db-subnet-group || true
+
+          # 6. IAM Roles and Policies
+          POLICIES=("dev-eks-ecr-readonly-policy" "dev-interaction-db-policy" "dev-notification-db-policy")
+          ROLES=("dev-eks-cluster-role" "dev-eks-node-role" "dev-user-service-role" "dev-post-service-role" "dev-interaction-service-role" "dev-feed-service-role" "dev-notification-service-role" "dev-search-service-role" "dev-media-service-role")
+
+          for role in "${ROLES[@]}"; do
+            echo "Cleaning IAM Role: $role"
+            # List attached policies
+            attached_policies=$(aws iam list-attached-role-policies --role-name $role --query "AttachedPolicies[].PolicyArn" --output text 2>/dev/null || true)
+            for policy_arn in $attached_policies; do
+              echo "Detaching policy $policy_arn from role $role"
+              aws iam detach-role-policy --role-name $role --policy-arn $policy_arn || true
+            done
+            # Delete inline policies
+            inline_policies=$(aws iam list-role-policies --role-name $role --query "PolicyNames[]" --output text 2>/dev/null || true)
+            for policy_name in $inline_policies; do
+              echo "Deleting inline policy $policy_name from role $role"
+              aws iam delete-role-policy --role-name $role --policy-name $policy_name || true
+            done
+            # Delete role
+            aws iam delete-role --role-name $role || true
+          done
+
+          ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
+          for policy in "${POLICIES[@]}"; do
+            policy_arn="arn:aws:iam::$ACCOUNT_ID:policy/$policy"
+            echo "Deleting IAM Policy: $policy_arn"
+            aws iam delete-policy --policy-arn $policy_arn || true
+          done
+
+          # 7. VPC Cleanup (NAT Gateways, Elastic IPs, Internet Gateways, Route Tables, Subnets, VPCs)
+          echo "Locating VPCs named dev-vpc..."
+          VPC_IDS=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=dev-vpc" --query "Vpcs[].VpcId" --output text 2>/dev/null || true)
+          for vpc_id in $VPC_IDS; do
+            echo "Cleaning up VPC: $vpc_id"
+            
+            # Delete NAT Gateways
+            echo "Locating NAT Gateways in VPC $vpc_id..."
+            nat_gateways=$(aws ec2 describe-nat-gateways --filter "Name=vpc-id,Values=$vpc_id" --query "NatGateways[?State!='deleted'].NatGatewayId" --output text 2>/dev/null || true)
+            for nat_gw in $nat_gateways; do
+              echo "Deleting NAT Gateway: $nat_gw"
+              aws ec2 delete-nat-gateway --nav-gateway-id $nat_gw --nat-gateway-id $nat_gw || true
+            done
+            
+            # Wait for NAT Gateways to be deleted
+            if [ -n "$nat_gateways" ]; then
+              echo "Waiting for NAT Gateways to delete..."
+              sleep 40
+            fi
+
+            # Release Elastic IPs
+            echo "Releasing Elastic IPs..."
+            eip_allocations=$(aws ec2 describe-addresses --filters "Name=tag:Name,Values=dev-nat-eip*" --query "Addresses[].AllocationId" --output text 2>/dev/null || true)
+            for eip in $eip_allocations; do
+              echo "Releasing Elastic IP: $eip"
+              aws ec2 release-address --allocation-id $eip || true
+            done
+
+            # Detach and Delete Internet Gateways
+            igws=$(aws ec2 describe-internet-gateways --filters "Name=attachment.vpc-id,Values=$vpc_id" --query "InternetGateways[].InternetGatewayId" --output text 2>/dev/null || true)
+            for igw in $igws; do
+              echo "Detaching IGW: $igw"
+              aws ec2 detach-internet-gateway --internet-gateway-id $igw --vpc-id $vpc_id || true
+              echo "Deleting IGW: $igw"
+              aws ec2 delete-internet-gateway --internet-gateway-id $igw || true
+            done
+
+            # Delete Subnets
+            subnets=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$vpc_id" --query "Subnets[].SubnetId" --output text 2>/dev/null || true)
+            for subnet in $subnets; do
+              echo "Deleting Subnet: $subnet"
+              aws ec2 delete-subnet --subnet-id $subnet || true
+            done
+
+            # Delete Route Tables (excluding main route table)
+            route_tables=$(aws ec2 describe-route-tables --filters "Name=vpc-id,Values=$vpc_id" --query "RouteTables[].RouteTableId" --output text 2>/dev/null || true)
+            for rt in $route_tables; do
+              is_main=$(aws ec2 describe-route-tables --route-table-ids $rt --query "RouteTables[].Associations[?Main==\`true\`].RouteTableId" --output text 2>/dev/null || true)
+              if [ -z "$is_main" ]; then
+                echo "Deleting Route Table: $rt"
+                aws ec2 delete-route-table --route-table-id $rt || true
+              fi
+            done
+
+            # Delete Security Groups (excluding default)
+            security_groups=$(aws ec2 describe-security-groups --filters "Name=vpc-id,Values=$vpc_id" --query "SecurityGroups[?GroupName!='default'].GroupId" --output text 2>/dev/null || true)
+            for sg in $security_groups; do
+              echo "Deleting Security Group: $sg"
+              aws ec2 delete-security-group --group-id $sg || true
+            done
+
+            # Finally, delete the VPC
+            echo "Deleting VPC: $vpc_id"
+            aws ec2 delete-vpc --vpc-id $vpc_id || true
+          done
+
+          echo "Cleanup successfully completed!"
