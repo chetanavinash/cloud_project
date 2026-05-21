@@ -34,3 +34,7 @@ dynamodb-data/
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
+
+# Generated Prisma Clients
+services/feed-service/src/generated/
+

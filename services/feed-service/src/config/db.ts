@@ -1,5 +1,5 @@
-import { PrismaClient as UserPrismaClient } from '@prisma/user-client';
-import { PrismaClient as PostPrismaClient } from '@prisma/post-client';
+import { PrismaClient as UserPrismaClient } from '../generated/user-client/index.js';
+import { PrismaClient as PostPrismaClient } from '../generated/post-client/index.js';
 import { config } from './index.js';
 
 export const userPrisma = new UserPrismaClient({
