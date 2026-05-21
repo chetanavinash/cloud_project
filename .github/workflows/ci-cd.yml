@@ -119,7 +119,8 @@ jobs:
           LOCALSTACK_ENDPOINT: http://localhost:4566
           S3_BUCKET_NAME: social-media-attachments
           NODE_ENV: test
-        run: npm run test -w services/media-service -- --passWithNoTests
+        run: npm run test -w services/media-service
+
 
   build-and-push-ecr:
     name: Build & Push to Amazon ECR
