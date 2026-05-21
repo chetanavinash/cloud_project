@@ -28,6 +28,10 @@ jobs:
           docker compose up -d
 
       - name: Generate Prisma Clients
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5435/db?schema=public
+          USER_DATABASE_URL: postgresql://postgres:postgres@localhost:5435/db?schema=public
+          POST_DATABASE_URL: postgresql://postgres:postgres@localhost:5435/db?schema=public
         run: npm run prisma:generate --workspaces --if-present
 
       - name: Wait for Services to be Ready
