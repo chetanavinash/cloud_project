@@ -28,13 +28,13 @@ spec:
           # Configure standard readiness/liveness probes using Fastify default health check or routes
           readinessProbe:
             httpGet:
-              path: {{ .Values.readinessProbe.path | default "/health" }}
+              path: {{ if and .Values.readinessProbe .Values.readinessProbe.path }}{{ .Values.readinessProbe.path }}{{ else }}"/health"{{ end }}
               port: {{ .Values.service.targetPort }}
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet:
-              path: {{ .Values.livenessProbe.path | default "/health" }}
+              path: {{ if and .Values.livenessProbe .Values.livenessProbe.path }}{{ .Values.livenessProbe.path }}{{ else }}"/health"{{ end }}
               port: {{ .Values.service.targetPort }}
             initialDelaySeconds: 15
             periodSeconds: 20
