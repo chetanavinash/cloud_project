@@ -35,7 +35,7 @@ resource "aws_security_group" "redis_sg" {
 resource "aws_elasticache_replication_group" "redis" {
   replication_group_id       = "${var.environment}-social-redis"
   description                = "Redis cluster for feed caching, session storage, and rate limiting"
-  node_type                  = "cache.t3.medium" # Budget-friendly node type
+  node_type                  = "cache.t3.micro" # Free Tier eligible node type
   port                       = 6379
   parameter_group_name       = "default.redis7"
   subnet_group_name          = aws_elasticache_subnet_group.redis.name

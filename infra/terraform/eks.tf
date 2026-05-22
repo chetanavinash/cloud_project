@@ -47,7 +47,7 @@ resource "aws_security_group" "eks_cluster" {
 # ==============================================================================
 resource "aws_eks_cluster" "main" {
   name     = var.cluster_name
-  version  = "1.28"
+  version  = "1.29"
   role_arn = aws_iam_role.eks_cluster.arn
 
   vpc_config {
@@ -108,7 +108,7 @@ resource "aws_eks_node_group" "general" {
   node_role_arn   = aws_iam_role.eks_nodes.arn
   subnet_ids      = aws_subnet.private[*].id
 
-  instance_types = ["t3.medium"]
+  instance_types = ["t3.micro"]
   ami_type       = "AL2_x86_64"
 
   scaling_config {

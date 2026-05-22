@@ -96,7 +96,7 @@ jobs:
 
           # 6. IAM Roles and Policies
           POLICIES=("dev-eks-ecr-readonly-policy" "dev-interaction-db-policy" "dev-notification-db-policy")
-          ROLES=("dev-eks-cluster-role" "dev-eks-node-role" "dev-user-service-role" "dev-post-service-role" "dev-interaction-service-role" "dev-feed-service-role" "dev-notification-service-role" "dev-search-service-role" "dev-media-service-role")
+          ROLES=("dev-eks-cluster-role" "dev-eks-node-role" "dev-user-service-role" "dev-post-service-role" "dev-interaction-service-role" "dev-feed-service-role" "dev-notification-service-role" "dev-search-service-role" "dev-media-service-role" "dev-ebs-csi-role")
 
           for role in "${ROLES[@]}"; do
             echo "Cleaning IAM Role: $role"
