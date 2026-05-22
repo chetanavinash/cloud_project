@@ -55,13 +55,15 @@ resource "aws_iam_role_policy_attachment" "ebs_csi_policy" {
   role       = aws_iam_role.ebs_csi.name
 }
 
-resource "aws_eks_addon" "ebs_csi" {
-  cluster_name             = aws_eks_cluster.main.name
-  addon_name               = "aws-ebs-csi-driver"
-  service_account_role_arn = aws_iam_role.ebs_csi.arn
-
-  depends_on = [
-    aws_eks_node_group.general,
-    aws_iam_role_policy_attachment.ebs_csi_policy
-  ]
-}
+# Note: EBS CSI Driver is commented out because all our services are stateless and connect to managed AWS database backends.
+# Disabling the CSI driver saves valuable memory on t3.micro nodes and prevents 20-minute Terraform provisioning timeouts.
+# resource "aws_eks_addon" "ebs_csi" {
+#   cluster_name             = aws_eks_cluster.main.name
+#   addon_name               = "aws-ebs-csi-driver"
+#   service_account_role_arn = aws_iam_role.ebs_csi.arn
+# 
+#   depends_on = [
+#     aws_eks_node_group.general,
+#     aws_iam_role_policy_attachment.ebs_csi_policy
+#   ]
+# }
