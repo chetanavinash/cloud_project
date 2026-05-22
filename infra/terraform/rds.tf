@@ -15,11 +15,11 @@ resource "aws_security_group" "db_sg" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description     = "PostgreSQL access from EKS nodes"
-    from_port       = 5432
-    to_port         = 5432
-    protocol        = "tcp"
-    security_groups = [aws_eks_cluster.main.vpc_config[0].cluster_security_group_id]
+    description = "PostgreSQL access from EKS nodes and VPC"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
   }
 
   egress {

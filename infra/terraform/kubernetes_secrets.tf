@@ -43,10 +43,19 @@ resource "kubernetes_secret" "app_secrets" {
   ]
 }
 
+# Generate a unique suffix for the database initializer job on each run / configuration change
+resource "random_id" "db_init_suffix" {
+  keepers = {
+    db_host     = aws_db_instance.postgres.address
+    db_password = random_password.db_password.result
+  }
+  byte_length = 4
+}
+
 # Lightweight, automated one-shot Job to initialize schemas databases in RDS PostgreSQL
 resource "kubernetes_job" "db_initializer" {
   metadata {
-    name      = "db-initializer"
+    name      = "db-initializer-${random_id.db_init_suffix.hex}"
     namespace = "default"
   }
 
@@ -83,6 +92,10 @@ resource "kubernetes_job" "db_initializer" {
   }
 
   wait_for_completion = true
+
+  timeouts {
+    create = "10m"
+  }
 
   # Ensure RDS is fully available and EKS worker nodes are online to schedule the job
   depends_on = [
