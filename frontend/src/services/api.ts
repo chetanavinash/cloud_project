@@ -1,5 +1,8 @@
 import { useAuthStore } from '../store/auth.js';
 
+const isProduction = import.meta.env.PROD;
+const apiBaseUrl = import.meta.env.VITE_API_URL || '';
+
 const SERVICES: Record<string, string> = {
   user: 'http://localhost:3001',
   post: 'http://localhost:3002',
@@ -11,6 +14,10 @@ const SERVICES: Record<string, string> = {
 };
 
 function getServiceUrl(path: string, _method: string): string {
+  if (isProduction && apiBaseUrl) {
+    return apiBaseUrl;
+  }
+  
   if (path.startsWith('/register') || path.startsWith('/users')) {
     if (path.includes('/posts')) {
       return SERVICES.post;
