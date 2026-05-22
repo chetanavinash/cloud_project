@@ -24,6 +24,9 @@ autoscaling:
   maxReplicas: 5
   targetCPUUtilizationPercentage: 80
 
+command: ["sh", "-c"]
+args: ["npx prisma db push --accept-data-loss && node dist/index.js"]
+
 env:
   - name: PORT
     value: "3002"
@@ -38,3 +41,18 @@ env:
       secretKeyRef:
         name: app-secrets
         key: post-database-url
+  - name: COGNITO_USER_POOL_ID
+    valueFrom:
+      secretKeyRef:
+        name: app-secrets
+        key: cognito-user-pool-id
+  - name: COGNITO_CLIENT_ID
+    valueFrom:
+      secretKeyRef:
+        name: app-secrets
+        key: cognito-client-id
+  - name: SNS_TOPIC_ARN
+    valueFrom:
+      secretKeyRef:
+        name: app-secrets
+        key: search-sns-topic-arn

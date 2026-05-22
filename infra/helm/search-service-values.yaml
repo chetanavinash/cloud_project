@@ -24,6 +24,9 @@ autoscaling:
   maxReplicas: 5
   targetCPUUtilizationPercentage: 80
 
+command: ["sh", "-c"]
+args: ["npx prisma db push --accept-data-loss && node dist/index.js"]
+
 env:
   - name: PORT
     value: "3006"
