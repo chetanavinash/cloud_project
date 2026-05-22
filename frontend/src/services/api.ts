@@ -1,7 +1,7 @@
 import { useAuthStore } from '../store/auth.js';
 
 const isProduction = import.meta.env.PROD;
-const apiBaseUrl = import.meta.env.VITE_API_URL || '';
+const apiBaseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
 const SERVICES: Record<string, string> = {
   user: 'http://localhost:3001',
