@@ -48,7 +48,7 @@ resource "aws_db_instance" "postgres" {
   allocated_storage      = 20
   max_allocated_storage  = 100
   engine                 = "postgres"
-  engine_version         = "15.4"
+  engine_version         = "15" # Uses major version to automatically pick the latest supported minor version
   instance_class         = "db.t3.micro" # Fully Free Tier eligible
   db_name                = "postgres"
   username               = "postgres"

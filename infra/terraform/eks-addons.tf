@@ -46,7 +46,7 @@ data "aws_iam_policy_document" "ebs_csi_assume_role" {
 }
 
 resource "aws_iam_role" "ebs_csi" {
-  name               = "${var.environment}-ebs-csi-role"
+  name_prefix        = "${var.environment}-ebs-csi-role-"
   assume_role_policy = data.aws_iam_policy_document.ebs_csi_assume_role.json
 }
 
